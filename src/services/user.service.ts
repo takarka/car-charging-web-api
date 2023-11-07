@@ -1,6 +1,8 @@
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { FirebaseDatabase } from "../firebase/admin";
 import { IUser } from "../models/user.model";
-import bcrypt from "bcrypt";
+import { SECRET_KEY } from "../middleware/auth";
 
 export async function register(user: IUser): Promise<void> {
   try {
@@ -40,7 +42,7 @@ export async function login(user: IUser) {
     // Check if the user exists in the 'users' node
     const usersRef = FirebaseDatabase.ref("users");
     const snapshot = await usersRef.child(user.phoneNumber).once("value");
-    const foundUser = snapshot.val();
+    const foundUser: IUser = snapshot.val();
 
     if (!foundUser) {
       throw new Error("Invalid credentials");
@@ -50,25 +52,20 @@ export async function login(user: IUser) {
     const isMatch = bcrypt.compareSync(user.password, foundUser.password);
 
     if (isMatch) {
-      console.log("Password match");
-      return foundUser;
+      const token = jwt.sign(
+        {
+          phoneNumber: foundUser.phoneNumber?.toString(),
+          firstName: foundUser.firstName,
+        },
+        SECRET_KEY,
+        {
+          expiresIn: "1h",
+        }
+      );
+      return { ...foundUser, token };
     } else {
-      console.log("Password mismatch");
       throw new Error("Invalid credentials");
     }
-    // Generate a JWT token
-    //   const { password, ...userDataWithoutPassword } = user;
-    //   const token = sign(userDataWithoutPassword, process.env.SESSION_SECRET, {
-    //     expiresIn: "1h",
-    //   });
-
-    //   res.status(200).json({
-    //     user: userDataWithoutPassword,
-    //     token: token,
-    //   });
-    // } else {
-    //   res.status(401).send("Invalid credentials");
-    // }
   } catch (error) {
     throw error;
   }
