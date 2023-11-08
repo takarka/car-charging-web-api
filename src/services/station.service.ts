@@ -30,3 +30,14 @@ function isStationCharging(id: string, stationValue: any): boolean {
     ? stationValue[id].isCharging
     : false;
 }
+
+export async function stationById(id: string): Promise<IStation> {
+  try {
+    const stationsInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + id);
+    const stationsInfoSnapshot = await stationsInfoRef.once("value");
+
+    return { id, ...stationsInfoSnapshot.val() };
+  } catch (error) {
+    throw error;
+  }
+}
