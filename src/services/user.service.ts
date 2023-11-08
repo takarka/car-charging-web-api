@@ -62,7 +62,7 @@ export async function login(user: IUser) {
           expiresIn: "1h",
         }
       );
-      return { ...foundUser, token };
+      return { ...foundUser, token: token };
     } else {
       throw new Error("Invalid credentials");
     }
