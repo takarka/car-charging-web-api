@@ -5,6 +5,7 @@ export interface IStation {
   power: number;
   price: number;
   changeToWake: IStationChargeState;
+  isCharging: boolean;
 }
 
 export interface IStationChargeState {

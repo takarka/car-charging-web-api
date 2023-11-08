@@ -1,14 +1,3 @@
-// const database = database.ref("stations").on(
-//   "child_changed",
-//   (snapshot, key) => {
-//     console.log("key: ", key);
-//     console.log("data: ", snapshot.val());
-//   },
-//   (errorObject) => {
-//     console.log("The read failed: " + errorObject.name);
-//   }
-// );
-
 import * as firebase from "firebase-admin";
 import { App } from "firebase-admin/app";
 import { Database } from "firebase-admin/database";
