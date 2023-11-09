@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import { router } from "./routes/routes";
+import { paymentRouter } from "./routes/payment.routes";
 
 // make sure to create an .env file in the root of the project!
 dotenv.config();
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+app.use("", paymentRouter);
 
 app.listen(port, () => {
   console.log(`Node.JS-Express API 📀 listening at http://localhost:${port}`);

@@ -29,7 +29,6 @@ export async function register(user: IUser): Promise<void> {
             .catch(() => {
               throw new Error("Something went wrong, please try again");
             });
-          //   res.status(201).json(true);
         }
       });
   } catch (error) {
