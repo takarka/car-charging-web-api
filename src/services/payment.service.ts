@@ -10,12 +10,9 @@ import { IUser, IUserAccountHistory } from "../models/user.model";
 export async function kaspiPayment(
   data: IPaymentRequest
 ): Promise<IPaymentResponse> {
-  console.log("kaspiPayment service...: ", data);
   if (data?.command == "check") {
-    console.log("Checking...");
     return paymentUserExistingCheck(data);
   } else if (data?.command == "pay") {
-    console.log("Payment...");
     return paymentPay(data);
   } else {
     return <IPaymentResponse>{
