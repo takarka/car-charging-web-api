@@ -1,24 +1,22 @@
-FROM node:18.7.0-alpine
+FROM node:18.18.0
 
-RUN apk update
-RUN apk add nginx
-RUN apk add supervisor
+# Set the working directory
+WORKDIR /app
 
-RUN rm -f /etc/nginx/http.d/default.conf
-ADD ./docker/nginx/http.d/default.conf /etc/nginx/http.d/default.conf
-
-COPY ./docker/supervisord.conf /etc/supervisor/supervisord.conf
-COPY ./docker/supervisor.conf /etc/supervisor/conf.d/supervisor.conf
-
-
-RUN mkdir -p /home/www/node/node_modules && chown -R node:node /home/www/node
-RUN mkdir -p /var/log/supervisor && chown -R node:node /var/log/supervisor
-
-WORKDIR /home/www/node
+# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
-RUN npm install
-RUN npm ci --only=production
-COPY --chown=node:node . ./
-EXPOSE 4000
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application code
+COPY . .
+
+# Build TypeScript code
+RUN npm run build
+
+# Expose the port the app will run on
+EXPOSE 3000
+
+# Command to run the application
+CMD ["node", "./dist/index.js"]
