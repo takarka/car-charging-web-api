@@ -8,7 +8,7 @@ import { router } from "./routes/routes";
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 3476;
+const port = 4000;
 
 app.use(helmet());
 
