@@ -26,6 +26,14 @@ async function paymentUserExistingCheck(
   data: IPaymentRequest
 ): Promise<IPaymentResponse> {
   try {
+    if (!data?.account) {
+      return <IPaymentResponse>{
+        txn_id: data.txn_id,
+        result: PaymentResponseType.ERROR,
+        comment: "Account can not be empty!",
+      };
+    }
+
     const userRef = FirebaseDatabase.ref(USERS + "/" + data.account);
     const userSnapshot = await userRef.once("value");
     const user = userSnapshot.val();
@@ -33,6 +41,7 @@ async function paymentUserExistingCheck(
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: user ? PaymentResponseType.SUCCESS : PaymentResponseType.FAILED,
+      comment: "User does not exists!",
     };
   } catch (error) {
     return <IPaymentResponse>{
@@ -44,6 +53,14 @@ async function paymentUserExistingCheck(
 
 async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
   try {
+    if (!data?.account) {
+      return <IPaymentResponse>{
+        txn_id: data.txn_id,
+        result: PaymentResponseType.ERROR,
+        comment: "Account can not be empty!",
+      };
+    }
+    
     const userRef = FirebaseDatabase.ref(USERS + "/" + data.account);
     const userSnapshot = await userRef.once("value");
     const user: IUser = userSnapshot.val();
@@ -52,6 +69,7 @@ async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
       return <IPaymentResponse>{
         txn_id: data.txn_id,
         result: PaymentResponseType.ERROR,
+        comment: "User does not exists!",
       };
     }
 
