@@ -11,6 +11,7 @@ export const kaspiPayment = async (req: Request, res: Response) => {
     return res.status(500).send(<IPaymentResponse>{
       txn_id: req?.body?.txn_id,
       result: PaymentResponseType.ERROR,
+      comment: "Server error",
     });
   }
 };

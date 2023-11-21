@@ -4,7 +4,7 @@ import * as userController from "../controllers/user.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
-const allowedOrigins = ["http://localhost:4200", "https://trade-electro.kz"];
+const allowedOrigins = ["https://trade-electro.kz"];
 const allowedOriginsCors = cors({
   origin: function (origin, callback) {
     console.log("CORS", origin);
