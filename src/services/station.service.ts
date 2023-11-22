@@ -31,12 +31,26 @@ function isStationCharging(id: string, stationValue: any): boolean {
     : false;
 }
 
-export async function stationById(id: string): Promise<IStation> {
+export async function stationById(id: string): Promise<IStation | null> {
   try {
+    if (id == null || id.length === 0) {
+      return null;
+    }
+    const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + id);
     const stationsInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + id);
+
+    const stationsSnapshot = await stationsRef.once("value");
     const stationsInfoSnapshot = await stationsInfoRef.once("value");
 
-    return { id, ...stationsInfoSnapshot.val() };
+    const station: IStation = stationsSnapshot.val();
+    const stationInfo: IStation = stationsInfoSnapshot.val();
+
+    return <IStation>{
+      ...stationInfo,
+      id,
+      changeToWake: station.changeToWake,
+      isCharging: station.isCharging,
+    };
   } catch (error) {
     throw error;
   }
