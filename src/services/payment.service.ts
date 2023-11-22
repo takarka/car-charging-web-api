@@ -5,11 +5,7 @@ import {
   IPaymentResponse,
   PaymentResponseType,
 } from "../models/payment.model";
-import {
-  IUser,
-  IUserAccountHistory,
-  IUserAccountPaymentHistory,
-} from "../models/user.model";
+import { IUser, IUserAccountPaymentHistory } from "../models/user.model";
 
 export async function kaspiPayment(
   data: IPaymentRequest

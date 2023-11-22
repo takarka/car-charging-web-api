@@ -31,6 +31,9 @@ router.post("/register", userController.registerOne);
 router.get("/stations", auth, stationController.getAllStations);
 router.get("/stations/:id", auth, stationController.getStationById);
 
+router.get("/my-active-stations", auth, stationController.getAllMyActiveStations);
+router.get("/my-active-stations/:id", auth, stationController.getMyActiveStationById);
+
 router.post("/charge/start", auth, chargeController.startCharge);
 router.post("/charge/stop", auth, chargeController.stopCharge);
 

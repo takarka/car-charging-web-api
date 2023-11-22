@@ -1,3 +1,6 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { FirebaseDatabase } from "../firebase/admin";
 import { STATIONS, STATIONS_INFO, USERS } from "../firebase/db-ref-name";
 import {
@@ -6,19 +9,20 @@ import {
   IStationInfo,
   StationType,
 } from "../models/stations.model";
-import { IUser, IUserAccountChargeHistory } from "../models/user.model";
-import dayjs from "dayjs";
+import { IUser } from "../models/user.model";
+
+dayjs.extend(utc);
 
 export async function startCharging(
   userId: string,
   stationId: string,
   cost: number
 ): Promise<any | null> {
-  const dateNow = dayjs().format("YYYYMMDDhmmss");
+  const dateNow = dayjs().utc().toISOString()
 
   try {
     if (!userId || !stationId || !cost) {
-      return null;
+      throw new Error(`Requered fields does not exist!`);
     }
     const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationId);
     const stationsSnapshot = await stationsRef.once("value");
@@ -54,14 +58,14 @@ export async function startCharging(
       throw new Error(`Station ${stationId} is used by another user!`);
     }
 
-    // ADD accountHistory to USER
-    const userAccountHistoryRef = userRef.child("accountHistories");
-    await userAccountHistoryRef.push({
-      station: stationInfo,
-      sum: cost,
-      date: dateNow,
-      type: "charge",
-    } as IUserAccountChargeHistory);
+    // // ADD accountHistory to USER
+    // const userAccountHistoryRef = userRef.child("accountHistories");
+    // await userAccountHistoryRef.push({
+    //   station: stationInfo,
+    //   sum: cost,
+    //   date: dateNow,
+    //   type: "charge",
+    // } as IUserAccountChargeHistory);
 
     // Write off the user’s balance
     await userRef
@@ -70,9 +74,15 @@ export async function startCharging(
 
     // mark as this station is used by this user
     await stationsInfoRef.child("whoUses").transaction(
-      (currentData) => {
+      (currentData: IStationHistory) => {
         if (currentData === null) {
-          return userId;
+          return {
+            price: stationInfo.price,
+            power: stationInfo.power,
+            cost: cost,
+            date: dateNow,
+            user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
+          } as IStationHistory;
         } else {
           throw new Error(`Station ${stationId} is used by another user!`);
           // Abort the transaction.
@@ -94,14 +104,14 @@ export async function startCharging(
       }
     );
 
-    // add history to station
-    await stationsInfoRef.child("stationHistories").push({
-      price: stationInfo.price,
-      power: stationInfo.power,
-      cost: cost,
-      date: dateNow,
-      user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
-    } as IStationHistory);
+    // // add history to station
+    // await stationsInfoRef.child("stationHistories").push({
+    //   price: stationInfo.price,
+    //   power: stationInfo.power,
+    //   cost: cost,
+    //   date: dateNow,
+    //   user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
+    // } as IStationHistory);
 
     // start charging at this STATION
     await stationsRef.child("changeToWake/changeMe").transaction(

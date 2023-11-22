@@ -3,6 +3,7 @@ import { authUser } from "../middleware/auth";
 import { IStation } from "../models/stations.model";
 import { IUser } from "../models/user.model";
 import * as services from "../services/charge.service";
+import { getErrorMessage } from "../utils/errors.util";
 
 export const startCharge = async (
   req: Request,
@@ -19,7 +20,7 @@ export const startCharge = async (
 
     res.status(200).json(response);
   } catch (error) {
-    throw error;
+    res.status(500).json(getErrorMessage(error));
   }
 };
 
@@ -38,6 +39,6 @@ export const stopCharge = async (
 
     res.status(response ? 200 : 500).json(response);
   } catch (error) {
-    throw error;
+    res.status(500).json(getErrorMessage(error));
   }
 };
