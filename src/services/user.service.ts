@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { FirebaseDatabase } from "../firebase/admin";
 import { IUser } from "../models/user.model";
+import { USERS } from "../firebase/db-ref-name";
 import { SECRET_KEY } from "../middleware/auth";
 
 export async function register(user: IUser): Promise<void> {
@@ -10,7 +11,7 @@ export async function register(user: IUser): Promise<void> {
       throw new Error("Password and PhoneNumber is required!");
     }
 
-    const usersRef = FirebaseDatabase.ref("users");
+    const usersRef = FirebaseDatabase.ref(USERS);
 
     await usersRef
       .child(user.phoneNumber)
@@ -46,7 +47,7 @@ export async function login(user: IUser) {
     }
 
     // Check if the user exists in the 'users' node
-    const usersRef = FirebaseDatabase.ref("users");
+    const usersRef = FirebaseDatabase.ref(USERS);
     const snapshot = await usersRef.child(user.phoneNumber).once("value");
     const foundUser: IUser = snapshot.val();
 
