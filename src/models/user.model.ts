@@ -1,3 +1,5 @@
+import { IStationInfo } from "./stations.model";
+
 export interface IUser {
   firstName: string;
   phoneNumber: string;
@@ -6,15 +8,27 @@ export interface IUser {
   password?: string;
 }
 
-export interface IUserAccountHistory {
+export type IUserAccountHistory =
+  | IUserAccountPaymentHistory
+  | IUserAccountChargeHistory;
+
+export interface IUserAccountHistoryBase {
   id: string;
-  client: string;
   sum: number;
   date: string;
   type: UserAccountHistoryType;
 }
 
 export type UserAccountHistoryType = "payment" | "charge";
+
+export interface IUserAccountPaymentHistory extends IUserAccountHistoryBase {
+  client: string;
+  type: "payment";
+}
+export interface IUserAccountChargeHistory extends IUserAccountHistoryBase {
+  station: IStationInfo;
+  type: "charge";
+}
 
 // {
 //   amount: 2000,

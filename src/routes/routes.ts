@@ -1,10 +1,11 @@
 import { Router } from "express";
 import * as stationController from "../controllers/station.controller";
 import * as userController from "../controllers/user.controller";
+import * as chargeController from "../controllers/charge.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
-const allowedOrigins = ["http://localhost:4200","https://trade-electro.kz"];
+const allowedOrigins = ["http://localhost:4200", "https://trade-electro.kz"];
 const allowedOriginsCors = cors({
   origin: function (origin, callback) {
     console.log("CORS", origin);
@@ -29,5 +30,8 @@ router.post("/register", userController.registerOne);
 
 router.get("/stations", auth, stationController.getAllStations);
 router.get("/stations/:id", auth, stationController.getStationById);
+
+router.post("/charge/start", auth, chargeController.startCharge);
+router.post("/charge/stop", auth, chargeController.stopCharge);
 
 export { router };

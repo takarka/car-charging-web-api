@@ -5,7 +5,11 @@ import {
   IPaymentResponse,
   PaymentResponseType,
 } from "../models/payment.model";
-import { IUser, IUserAccountHistory } from "../models/user.model";
+import {
+  IUser,
+  IUserAccountHistory,
+  IUserAccountPaymentHistory,
+} from "../models/user.model";
 
 export async function kaspiPayment(
   data: IPaymentRequest
@@ -81,9 +85,11 @@ async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
     };
   }
 
-  const userPaymentRef = userRef.child("accountHistories/" + data.txn_id);
-  const userPayment = await userPaymentRef.once("value");
-  if (userPayment.exists()) {
+  const userAccountHistoryRef = userRef.child(
+    "accountHistories/" + data.txn_id
+  );
+  const userAccountHistory = await userAccountHistoryRef.once("value");
+  if (userAccountHistory.exists()) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: PaymentResponseType.ERROR,
@@ -91,13 +97,13 @@ async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
     };
   }
 
-  await userRef.child("accountHistories/" + data.txn_id).set({
+  await userAccountHistoryRef.set({
     id: data.txn_id,
     client: "Kaspi",
     sum: data.sum,
     date: data.txn_date,
     type: "payment",
-  } as IUserAccountHistory);
+  } as IUserAccountPaymentHistory);
 
   await userRef
     .child("accountBalance")

@@ -1,6 +1,5 @@
 import { FirebaseDatabase } from "../firebase/admin";
 import { STATIONS, STATIONS_INFO, USERS } from "../firebase/db-ref-name";
-import { authUser } from "../middleware/auth";
 import { IStation } from "../models/stations.model";
 import { IUser } from "../models/user.model";
 
