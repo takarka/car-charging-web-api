@@ -6,8 +6,7 @@ import { IUser } from "../models/user.model";
 export const loginOne = async (req: Request, res: Response) => {
   try {
     const foundUser: IUser = await userServices.login(req.body);
-    const { password, ...response } = foundUser;
-    return res.status(200).send(response);
+    return res.status(200).send(foundUser);
   } catch (error) {
     return res.status(500).send(getErrorMessage(error));
   }

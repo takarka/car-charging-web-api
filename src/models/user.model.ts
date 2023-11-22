@@ -1,9 +1,9 @@
 export interface IUser {
   firstName: string;
   phoneNumber: string;
-  password: string;
   accountBalance: number;
-  accountHistories: IUserAccountHistory[];
+  accountHistories?: IUserAccountHistory[];
+  password?: string;
 }
 
 export interface IUserAccountHistory {
