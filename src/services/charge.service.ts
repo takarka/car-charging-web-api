@@ -29,7 +29,7 @@ export async function startCharging(
     if (!userId || !stationId || !cost) {
       throw new Error(`Requered fields does not exist!`);
     }
-    const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationId);
+    const stationsRef = FirebaseDatabase.ref(STATIONS).child(stationId);
     const stationsSnapshot = await stationsRef.once("value");
     const station: IStation = stationsSnapshot.val();
     if (station == null) {
@@ -121,13 +121,9 @@ export async function startCharging(
       .child("accountBalance")
       .set(eval(`${user.accountBalance} - ${cost}`));
 
-
     // start charging at this STATION
-    await stationsRef
-      .child("changeToWake/changeMe")
-      .transaction((currentData: StationType) => {
-        return 1;
-      });
+    await stationsRef.child("changeToWake/changeMe").set(1);
+    await stationsRef.child("isCharging").set(true);
 
     return true;
   } catch (error) {
@@ -188,11 +184,8 @@ export async function stopCharging(
     await stationsInfoRef.child("whoUses").remove();
 
     // STOP charging at this STATION
-    await stationsRef
-      .child("changeToWake/changeMe")
-      .transaction((currentData: StationType) => {
-        return 0;
-      });
+    await stationsRef.child("changeToWake/changeMe").set(0);
+    await stationsRef.child("isCharging").set(false);
 
     // Update user account history
     const userRef = FirebaseDatabase.ref(USERS + "/" + userId);

@@ -1,9 +1,28 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { FirebaseDatabase } from "../firebase/admin";
-import { IUser } from "../models/user.model";
 import { USERS } from "../firebase/db-ref-name";
 import { SECRET_KEY } from "../middleware/auth";
+import { IUser } from "../models/user.model";
+
+export async function userInfo(phoneNumber: string): Promise<IUser | null> {
+  try {
+    if (!phoneNumber) {
+      throw new Error("Phone number is required!");
+    }
+
+    const usersRef = FirebaseDatabase.ref(USERS).child(phoneNumber);
+    const usersInfoSnapshot = await usersRef.once("value");
+    const user: IUser = usersInfoSnapshot.val();
+    if (user) {
+      const { accountHistories, password, ...returnData } = user;
+      return returnData;
+    }
+    return null;
+  } catch (error) {
+    throw error;
+  }
+}
 
 export async function resetPassword(user: IUser): Promise<void> {
   try {
@@ -27,7 +46,8 @@ export async function resetPassword(user: IUser): Promise<void> {
           const hashedPassword = await bcrypt.hash(user.password!, saltRounds);
           // Add user to the 'users' node in Firebase Realtime Database
           await usersRef
-            .child(user.phoneNumber).child('password')
+            .child(user.phoneNumber)
+            .child("password")
             .set(hashedPassword)
             .catch(() => {
               throw new Error("Something went wrong, please try again");
