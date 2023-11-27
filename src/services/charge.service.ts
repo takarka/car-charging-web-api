@@ -2,14 +2,19 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { FirebaseDatabase } from "../firebase/admin";
-import { STATIONS, STATIONS_INFO, USERS } from "../firebase/db-ref-name";
+import {
+  STATIONS,
+  STATIONS_INFO,
+  UNIQUE_IDS,
+  USERS,
+} from "../firebase/db-ref-name";
 import {
   IStation,
   IStationHistory,
   IStationInfo,
   StationType,
 } from "../models/stations.model";
-import { IUser } from "../models/user.model";
+import { IUser, IUserAccountChargeHistory } from "../models/user.model";
 
 dayjs.extend(utc);
 
@@ -18,7 +23,7 @@ export async function startCharging(
   stationId: string,
   cost: number
 ): Promise<any | null> {
-  const dateNow = dayjs().utc().toISOString()
+  const dateNow = dayjs().utc().toISOString();
 
   try {
     if (!userId || !stationId || !cost) {
@@ -30,20 +35,9 @@ export async function startCharging(
     if (station == null) {
       throw new Error(`Station ${stationId} does not exist!`);
     }
-    if (
-      station.changeToWake?.changeMe != null &&
-      station.changeToWake.changeMe === 1
-    ) {
+    if (station.isCharging) {
       // is station is active
       throw new Error(`Station ${stationId} is busy`);
-    }
-
-    const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
-    const userSnapshot = await userRef.once("value");
-    const user: IUser = userSnapshot.val();
-    if (!user.accountBalance || user.accountBalance < cost) {
-      // is station is active
-      throw new Error(`User ${userId} does not have enough money!`);
     }
 
     const stationsInfoRef = FirebaseDatabase.ref(
@@ -58,86 +52,180 @@ export async function startCharging(
       throw new Error(`Station ${stationId} is used by another user!`);
     }
 
-    // // ADD accountHistory to USER
-    // const userAccountHistoryRef = userRef.child("accountHistories");
-    // await userAccountHistoryRef.push({
-    //   station: stationInfo,
-    //   sum: cost,
-    //   date: dateNow,
-    //   type: "charge",
-    // } as IUserAccountChargeHistory);
+    const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
+    const userSnapshot = await userRef.once("value");
+    const user: IUser = userSnapshot.val();
+    if (!user?.accountBalance || user.accountBalance < cost) {
+      // is station is active
+      throw new Error(`User ${userId} does not have enough money!`);
+    }
 
-    // Write off the user’s balance
-    await userRef
-      .child("accountBalance")
-      .set(eval(`${user.accountBalance} - ${cost}`));
+    // GENERATE NEW ID FOR HISTORY
+    const newHistoryId = await FirebaseDatabase.ref(UNIQUE_IDS).push().key;
+    if (!newHistoryId) {
+      throw new Error(`New history ID can not generated!`);
+    }
 
-    // mark as this station is used by this user
-    await stationsInfoRef.child("whoUses").transaction(
-      (currentData: IStationHistory) => {
-        if (currentData === null) {
+    const stationsInfoWhoUsesTransaction = await stationsInfoRef
+      .child("whoUses")
+      .transaction((currentData) => {
+        if (currentData == null) {
           return {
+            id: newHistoryId,
             price: stationInfo.price,
             power: stationInfo.power,
             cost: cost,
             date: dateNow,
-            user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
+            user: {
+              firstName: user.firstName,
+              phoneNumber: user.phoneNumber,
+            },
           } as IStationHistory;
-        } else {
-          throw new Error(`Station ${stationId} is used by another user!`);
-          // Abort the transaction.
         }
-      },
-      (error, committed, snapshot) => {
-        if (error) {
-          console.log("whoUses Transaction failed abnormally!", error);
-          // throw error;
-        } else if (!committed) {
-          console.log(
-            "whoUses We aborted the transaction (because ada already exists)."
-          );
-          // throw error;
-        } else {
-          console.log("whoUses added!");
-        }
-        console.log("stationsInfoRef data: ", snapshot?.val());
-      }
-    );
+        // Abort the transaction.
+        return;
+      });
 
-    // // add history to station
-    // await stationsInfoRef.child("stationHistories").push({
-    //   price: stationInfo.price,
-    //   power: stationInfo.power,
-    //   cost: cost,
-    //   date: dateNow,
-    //   user: { phoneNumber: user.phoneNumber, firstName: user.firstName },
-    // } as IStationHistory);
+    if (!stationsInfoWhoUsesTransaction?.committed) {
+      //
+      throw new Error(
+        `Station ${stationId} is used by another user! (transaction)`
+      );
+    }
+
+    // ADD accountHistory to User
+    const userAccountHistoryRef = userRef
+      .child("accountHistories")
+      .child(newHistoryId);
+    await userAccountHistoryRef.set({
+      station: {
+        id: stationId,
+        name: stationInfo.name,
+        address: stationInfo.address,
+        price: stationInfo.price,
+        power: stationInfo.power,
+      },
+      sum: cost,
+      date: dateNow,
+      type: "charge",
+      isFinished: false,
+    } as IUserAccountChargeHistory);
+
+    // Write off the user’s balance
+    const accountBalanceTransaction = await userRef
+      .child("accountBalance")
+      .transaction((currentValue: number) => {
+        if (currentValue != null && currentValue >= cost) {
+          return eval(`${currentValue} - ${cost}`);
+        }
+        // Abort the transaction.
+        return;
+      });
+
+    if (!accountBalanceTransaction?.committed) {
+      // TODO: rollback the transaction
+      throw new Error(`User ${userId} does not have enough money!`);
+    }
 
     // start charging at this STATION
-    await stationsRef.child("changeToWake/changeMe").transaction(
-      (currentData: StationType) => {
-        if (currentData !== 1) {
-          return 1;
-        } else {
-          throw new Error(`Station ${stationId} is already running!`);
-          // Abort the transaction.
-        }
-      },
-      (error, committed, snapshot) => {
-        if (error) {
-          console.log("changeMe Transaction failed abnormally!", error);
-          // throw error;
-        } else if (!committed) {
-          console.log(
-            "changeMe We aborted the transaction (because ada already exists)."
-          );
-          // throw error;
-        } else {
-          console.log("changeMe!");
-        }
-        console.log("stationsRef data: ", snapshot?.val());
-      }
+    await stationsRef
+      .child("changeToWake/changeMe")
+      .transaction((currentData: StationType) => {
+        return 1;
+      });
+
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function stopCharging(
+  userId: string,
+  stationId: string
+): Promise<any | null> {
+  try {
+    if (!userId || !stationId) {
+      throw new Error(`Requered fields does not exist!`);
+    }
+    const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationId);
+    const stationsSnapshot = await stationsRef.once("value");
+    const station: IStation = stationsSnapshot.val();
+    if (station == null) {
+      throw new Error(`Station ${stationId} does not exist!`);
+    }
+    if (!station.isCharging) {
+      // is station is active
+      throw new Error(`Station ${stationId} is not charging!`);
+    }
+
+    const stationsInfoRef = FirebaseDatabase.ref(
+      STATIONS_INFO + "/" + stationId
     );
+    const stationsInfoSnapshot = await stationsInfoRef.once("value");
+    const stationInfo: IStationInfo = stationsInfoSnapshot.val();
+    if (stationInfo == null) {
+      throw new Error(`Station Info ${stationId} does not exist!`);
+    }
+    if (stationInfo.whoUses == null) {
+      throw new Error(`Station ${stationId} is not used by anyone!`);
+    }
+    if (
+      stationInfo.whoUses.user?.phoneNumber == null ||
+      stationInfo.whoUses.user.phoneNumber != userId
+    ) {
+      throw new Error(
+        `This station ${stationId} was started by another user! `
+      );
+    }
+
+    // const factChargedPower = station?.power ?? 0;
+    // const planChargedPower = amountOfPower(
+    //   stationInfo.whoUses.price,
+    //   stationInfo.whoUses.cost
+    // );
+
+    // if(factChargedPower < planChargedPower){
+    //   // amountOfCost
+    // }
+
+    await stationsInfoRef.child("stationHistories").push(stationInfo.whoUses);
+    await stationsInfoRef.child("whoUses").remove();
+
+    // STOP charging at this STATION
+    await stationsRef
+      .child("changeToWake/changeMe")
+      .transaction((currentData: StationType) => {
+        return 0;
+      });
+
+    // Update user account history
+    const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
+    const userAccountHistoryRef = await userRef
+      .child("accountHistories")
+      .child(stationInfo.whoUses.id);
+
+    const userAccountHistorySnopshot = await userAccountHistoryRef.once(
+      "value"
+    );
+    if (!userAccountHistorySnopshot.exists()) {
+      // throw an error
+      userAccountHistoryRef.set({
+        station: {
+          id: stationId,
+          name: stationInfo.name,
+          address: stationInfo.address,
+          price: stationInfo.whoUses.price,
+          power: stationInfo.whoUses.power,
+        },
+        sum: stationInfo.whoUses.cost,
+        date: stationInfo.whoUses.date,
+        type: "charge",
+        isFinished: true,
+      } as IUserAccountChargeHistory);
+    } else {
+      userAccountHistoryRef.child("isFinished").set(true);
+    }
 
     return true;
   } catch (error) {

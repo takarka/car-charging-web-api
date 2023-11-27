@@ -23,9 +23,17 @@ export interface IStationInfo extends IStation {
 }
 
 export interface IStationHistory {
+  id: string; // history id
   price: number;
   power: number;
   cost: number;
   date: string;
-  user: IUser;
+  user?: IUser;
+  order?: IOrder;
+}
+
+export interface IOrder {
+  id: string;
+  client: string;
+  date: string;
 }

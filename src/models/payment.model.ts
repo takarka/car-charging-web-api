@@ -1,6 +1,6 @@
 export interface IPaymentRequest {
   txn_id: string;
-  account: string;
+  account: string; // идентификатор абонента/номер станций
   sum: number;
   command: PaymentRequestType;
   txn_date: string;
@@ -14,6 +14,21 @@ export interface IPaymentResponse {
   result: PaymentResponseType;
   sum: number;
   comment: string;
+  fields?: {
+    field1?: {
+      userFullName: string;
+      balance: number;
+      minSumForPay: number;
+    };
+    field2?: {
+      minSumForPay: number;
+      isBusy: boolean;
+      power: string;
+      price: string;
+      name: string;
+      address: string;
+    };
+  };
 }
 
 export const enum PaymentResponseType {

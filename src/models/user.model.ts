@@ -28,17 +28,5 @@ export interface IUserAccountPaymentHistory extends IUserAccountHistoryBase {
 export interface IUserAccountChargeHistory extends IUserAccountHistoryBase {
   station: IStationInfo;
   type: "charge";
+  isFinished: boolean;
 }
-
-// {
-//   amount: 2000,
-//   station: {
-//     id: 1223,
-//     name: 'Station1',
-//     address: 'Mega',
-//     price: 70,
-//   },
-//   startDate: '2015-01',
-//   endDate: '2015-01',
-//   type: 'charge',
-// },
