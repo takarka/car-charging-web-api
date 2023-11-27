@@ -10,7 +10,6 @@ import {
   IStation,
   IStationHistory,
   IStationInfo,
-  StationType,
 } from "../models/stations.model";
 import { IUser, IUserAccountPaymentHistory } from "../models/user.model";
 
@@ -138,7 +137,11 @@ async function paymentPayUser(
   );
   const userAccountHistory = await userAccountHistoryRef.once("value");
   if (userAccountHistory.exists()) {
-    throw new Error(`Payment with ${data.txn_id} already exists!`);
+    return <IPaymentResponse>{
+      txn_id: data.txn_id,
+      result: PaymentResponseType.PAID,
+      comment: `Payment with ${data.txn_id} already exists!`,
+    };
   }
 
   await userAccountHistoryRef.set({
@@ -178,7 +181,11 @@ async function paymentPayStation(
   );
 
   if (isTxnIdAlreadyExists) {
-    throw new Error(`Payment with ${data?.txn_id} already exists!`);
+    return <IPaymentResponse>{
+      txn_id: data.txn_id,
+      result: PaymentResponseType.PAID,
+      comment: `Payment with ${data?.txn_id} already exists!`,
+    };
   }
 
   if (stationInfo?.whoUses) {
@@ -186,62 +193,28 @@ async function paymentPayStation(
   }
 
   // mark as this station is used by Order
-  await stationsInfoRef.child("whoUses").transaction(
-    (currentData: IStationHistory) => {
-      const dateNow = dayjs().utc().toISOString();
-      return {
-        price: stationInfo.price,
-        power: stationInfo.power,
-        cost: data.sum,
-        date: dateNow,
-        order: { id: data.txn_id, client: "Kaspi", date: data.txn_date },
-      } as IStationHistory;
-      // TODO: why?
-    },
-    (error, committed, snapshot) => {
-      if (error) {
-        console.log("whoUses Transaction failed abnormally!", error);
-        // throw error;
-      } else if (!committed) {
-        console.log(
-          "whoUses We aborted the transaction (because ada already exists)."
-        );
-        // throw error;
-      } else {
-        console.log("whoUses added!");
-      }
-      console.log("stationsInfoRef data: ", snapshot?.val());
-    }
-  );
+  const dateNow = dayjs().utc().toISOString();
+  await stationsInfoRef.child("whoUses").set({
+    price: stationInfo.price,
+    power: stationInfo.power,
+    cost: data.sum,
+    date: dateNow,
+    order: { id: data.txn_id, client: "Kaspi", date: data.txn_date },
+  } as IStationHistory);
 
   // start charging at this STATION
   const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationID);
   const stationsSnapshot = await stationsRef.once("value");
   const station: IStation = stationsSnapshot.val();
   if (station == null) {
-    throw new Error(`Account not found!`);
+    return <IPaymentResponse>{
+      txn_id: data.txn_id,
+      result: PaymentResponseType.FAILED,
+      comment: `Station ${stationID} not found!`,
+    };
   }
 
-  await stationsRef.child("changeToWake/changeMe").transaction(
-    (currentData: StationType) => {
-      // TODO: why?
-      return 1;
-    },
-    (error, committed, snapshot) => {
-      if (error) {
-        console.log("changeMe Transaction failed abnormally!", error);
-        // throw error;
-      } else if (!committed) {
-        console.log(
-          "changeMe We aborted the transaction (because ada already exists)."
-        );
-        // throw error;
-      } else {
-        console.log("changeMe!");
-      }
-      console.log("stationsRef data: ", snapshot?.val());
-    }
-  );
+  await stationsRef.child("changeToWake/changeMe").set(1);
 
   return <IPaymentResponse>{
     txn_id: data.txn_id,
