@@ -55,7 +55,12 @@ export async function startCharging(
     const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
     const userSnapshot = await userRef.once("value");
     const user: IUser = userSnapshot.val();
-    if (!user?.accountBalance || user.accountBalance < cost) {
+    if (user == null) {
+      // is station is active
+      throw new Error(`User ${userId}  not found!`);
+    }
+
+    if (!user.accountBalance || user.accountBalance < cost) {
       // is station is active
       throw new Error(`User ${userId} does not have enough money!`);
     }
@@ -112,20 +117,10 @@ export async function startCharging(
     } as IUserAccountChargeHistory);
 
     // Write off the user’s balance
-    const accountBalanceTransaction = await userRef
+    await userRef
       .child("accountBalance")
-      .transaction((currentValue: number) => {
-        if (currentValue != null && currentValue >= cost) {
-          return eval(`${currentValue} - ${cost}`);
-        }
-        // Abort the transaction.
-        return;
-      });
+      .set(eval(`${user.accountBalance} - ${cost}`));
 
-    if (!accountBalanceTransaction?.committed) {
-      // TODO: rollback the transaction
-      throw new Error(`User ${userId} does not have enough money!`);
-    }
 
     // start charging at this STATION
     await stationsRef

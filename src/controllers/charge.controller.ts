@@ -15,7 +15,7 @@ export const startCharge = async (
     const response: boolean = await services.startCharging(
       user?.phoneNumber,
       stationId,
-      cost
+      +cost
     );
 
     res.status(200).json(response);
@@ -31,10 +31,9 @@ export const stopCharge = async (
   try {
     const { stationId, cost } = req.body;
     const user: IUser = authUser(req);
-    const response: IStation | null = await services.startCharging(
+    const response: IStation | null = await services.stopCharging(
       user?.phoneNumber,
       stationId,
-      cost
     );
 
     res.status(response ? 200 : 500).json(response);

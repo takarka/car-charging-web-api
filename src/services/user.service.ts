@@ -5,6 +5,40 @@ import { IUser } from "../models/user.model";
 import { USERS } from "../firebase/db-ref-name";
 import { SECRET_KEY } from "../middleware/auth";
 
+export async function resetPassword(user: IUser): Promise<void> {
+  try {
+    if (!user.phoneNumber || !user.password) {
+      throw new Error("Password and PhoneNumber is required!");
+    }
+
+    const usersRef = FirebaseDatabase.ref(USERS);
+
+    await usersRef
+      .child(user.phoneNumber)
+      .once("value")
+      .then(async (snapshot) => {
+        const existingUser = snapshot.val();
+
+        if (!existingUser) {
+          throw new Error(`User ${user.phoneNumber} is not exists!`);
+        } else {
+          // Hash the password before saving it
+          const saltRounds = 10; // Adjust the number of salt rounds as needed
+          const hashedPassword = await bcrypt.hash(user.password!, saltRounds);
+          // Add user to the 'users' node in Firebase Realtime Database
+          await usersRef
+            .child(user.phoneNumber).child('password')
+            .set(hashedPassword)
+            .catch(() => {
+              throw new Error("Something went wrong, please try again");
+            });
+        }
+      });
+  } catch (error) {
+    throw error;
+  }
+}
+
 export async function register(user: IUser): Promise<void> {
   try {
     if (!user.password || !user.phoneNumber) {

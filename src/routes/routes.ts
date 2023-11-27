@@ -27,6 +27,7 @@ router.use(allowedOriginsCors);
 
 router.post("/login", userController.loginOne);
 router.post("/register", userController.registerOne);
+router.post("/reset-password", userController.resetPassword);
 
 router.get("/stations", auth, stationController.getAllStations);
 router.get("/stations/:id", auth, stationController.getStationById);
