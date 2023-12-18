@@ -11,8 +11,7 @@ import {
 import {
   IStation,
   IStationHistory,
-  IStationInfo,
-  StationType,
+  IStationInfo
 } from "../models/stations.model";
 import { IUser, IUserAccountChargeHistory } from "../models/user.model";
 
@@ -123,7 +122,7 @@ export async function startCharging(
 
     // start charging at this STATION
     await stationsRef.child("changeToWake/changeMe").set(1);
-    await stationsRef.child("isCharging").set(true);
+    // await stationsRef.child("isCharging").set(true);
 
     return true;
   } catch (error) {
@@ -185,7 +184,7 @@ export async function stopCharging(
 
     // STOP charging at this STATION
     await stationsRef.child("changeToWake/changeMe").set(0);
-    await stationsRef.child("isCharging").set(false);
+    // await stationsRef.child("isCharging").set(false);
 
     // Update user account history
     const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
