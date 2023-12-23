@@ -64,6 +64,8 @@ export async function stationById(
       changeToWake: station.changeToWake,
       isCharging: station.isCharging,
       accountBalance: user.accountBalance ?? 0,
+      stationHistories: [],
+      whoUses: undefined,
     };
   } catch (error) {
     throw error;
@@ -135,7 +137,8 @@ export async function myActiveStationById(
       id: stationId,
       changeToWake: station.changeToWake,
       isCharging: station.isCharging,
-      currentChargingPower: station.power ?? 0,
+      // currentChargingPower: station.power ?? 0,
+      currentChargingPower: 0,
     };
   } catch (error) {
     throw error;

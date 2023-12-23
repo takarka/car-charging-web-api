@@ -16,7 +16,7 @@ export interface IStationChargeState {
 export type StationType = 1 | 0; // 1 - on, 0 - off
 
 export interface IStationInfo extends IStation {
-  whoUses: IStationHistory;
+  whoUses?: IStationHistory;
   stationHistories?: IStationHistory[];
   currentChargingPower?: number; // transition field
   accountBalance?: number; // transition field
@@ -28,6 +28,7 @@ export interface IStationHistory {
   power: number;
   cost: number;
   date: string;
+  completionDate?: string;
   user?: IUser;
   order?: IOrder;
 }

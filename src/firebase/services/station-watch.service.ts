@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+import { Reference } from "firebase-admin/database";
 import { IStation, IStationInfo } from "../../models/stations.model";
 import { IUserAccountChargeHistory } from "../../models/user.model";
 import { FirebaseDatabase } from "../admin";
@@ -5,20 +7,19 @@ import { STATIONS, STATIONS_INFO, USERS } from "../db-ref-name";
 import { IStationChargeState } from "./../../models/stations.model";
 
 export async function stationStateChanges() {
-  console.log("stationStateChanges ");
   try {
     const stationsRef = FirebaseDatabase.ref(STATIONS);
     const stationsSnapshot = await stationsRef.once("value");
     const stationsValue: IStation[] = stationsSnapshot.val();
 
     for (const [stationId, station] of Object.entries(stationsValue)) {
-      console.log("key: ", stationId);
       stationsRef
         .child(stationId)
         .child("isCharging")
         .on("value", async (snapshot) => {
           const isCharging = snapshot.val();
           if (isCharging) {
+            setTimerToStopCharging(stationId, stationsRef);
             return;
           }
           stopStationCharging(stationId);
@@ -29,8 +30,6 @@ export async function stationStateChanges() {
               .child("changeToWake/changeMe")
               .set(0);
           }
-
-          console.log("isCharging: ", snapshot.val());
         });
     }
   } catch (error) {
@@ -38,14 +37,17 @@ export async function stationStateChanges() {
   }
 }
 
-async function stopStationCharging(stationId: string) {
+// stop charging when the station send isCharging = false
+async function stopStationCharging(stationId: string, stationsRef?: Reference) {
   const stationsInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + stationId);
   const stationsInfoSnapshot = await stationsInfoRef.once("value");
   const stationInfo: IStationInfo = stationsInfoSnapshot.val();
 
-  if (stationInfo.whoUses == null) {
+  if (stationInfo?.whoUses == null) {
     return;
   }
+
+  stationInfo.whoUses.completionDate = dayjs().utc().toISOString();
 
   await stationsInfoRef.child("stationHistories").push(stationInfo.whoUses);
   await stationsInfoRef.child("whoUses").remove();
@@ -73,12 +75,39 @@ async function stopStationCharging(stationId: string) {
       },
       sum: stationInfo.whoUses.cost,
       date: stationInfo.whoUses.date,
+      completionDate: stationInfo.whoUses.completionDate,
       type: "charge",
       isFinished: true,
     } as IUserAccountChargeHistory);
   } else {
     userAccountHistoryRef.child("isFinished").set(true);
+    userAccountHistoryRef
+      .child("completionDate")
+      .set(stationInfo.whoUses.completionDate);
   }
+}
+
+// stop charging when time is up
+async function setTimerToStopCharging(
+  stationId: string,
+  stationsRef: Reference
+) {
+  const stationsInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + stationId);
+  const stationsInfoSnapshot = await stationsInfoRef.once("value");
+  const stationInfo: IStationInfo = stationsInfoSnapshot.val();
+
+  if (stationInfo?.whoUses == null) {
+    return;
+  }
+
+  const stopTimeInMlSeconds = dayjs(stationInfo.whoUses.completionDate).diff(
+    stationInfo.whoUses.date,
+    "millisecond"
+  );
+
+  setTimeout(() => {
+    stationsRef.child(stationId).child("changeToWake/changeMe").set(0);
+  }, stopTimeInMlSeconds);
 }
 
 // Simylation of station device

@@ -16,6 +16,7 @@ export interface IUserAccountHistoryBase {
   id: string;
   sum: number;
   date: string;
+  completionDate: string;
   type: UserAccountHistoryType;
 }
 

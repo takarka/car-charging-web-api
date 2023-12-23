@@ -11,9 +11,10 @@ import {
 import {
   IStation,
   IStationHistory,
-  IStationInfo
+  IStationInfo,
 } from "../models/stations.model";
 import { IUser, IUserAccountChargeHistory } from "../models/user.model";
+import { calculateCompletionDate } from "../utils/charge.util";
 
 dayjs.extend(utc);
 
@@ -80,6 +81,7 @@ export async function startCharging(
             power: stationInfo.power,
             cost: cost,
             date: dateNow,
+            completionDate: calculateCompletionDate(stationInfo, cost, dateNow),
             user: {
               firstName: user.firstName,
               phoneNumber: user.phoneNumber,
@@ -111,6 +113,7 @@ export async function startCharging(
       },
       sum: cost,
       date: dateNow,
+      completionDate: calculateCompletionDate(stationInfo, cost, dateNow),
       type: "charge",
       isFinished: false,
     } as IUserAccountChargeHistory);
@@ -134,6 +137,8 @@ export async function stopCharging(
   userId: string,
   stationId: string
 ): Promise<any | null> {
+  const dateNow = dayjs().utc().toISOString();
+
   try {
     if (!userId || !stationId) {
       throw new Error(`Requered fields does not exist!`);
@@ -179,6 +184,8 @@ export async function stopCharging(
     //   // amountOfCost
     // }
 
+    stationInfo.whoUses.completionDate = dateNow;
+
     await stationsInfoRef.child("stationHistories").push(stationInfo.whoUses);
     await stationsInfoRef.child("whoUses").remove();
 
@@ -195,6 +202,7 @@ export async function stopCharging(
     const userAccountHistorySnopshot = await userAccountHistoryRef.once(
       "value"
     );
+
     if (!userAccountHistorySnopshot.exists()) {
       // throw an error
       userAccountHistoryRef.set({
@@ -207,11 +215,13 @@ export async function stopCharging(
         },
         sum: stationInfo.whoUses.cost,
         date: stationInfo.whoUses.date,
+        completionDate: stationInfo.whoUses.completionDate,
         type: "charge",
         isFinished: true,
       } as IUserAccountChargeHistory);
     } else {
       userAccountHistoryRef.child("isFinished").set(true);
+      userAccountHistoryRef.child("completionDate").set(stationInfo.whoUses.completionDate);
     }
 
     return true;
