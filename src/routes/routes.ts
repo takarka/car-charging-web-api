@@ -5,7 +5,7 @@ import * as chargeController from "../controllers/charge.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
-const allowedOrigins = [ "https://trade-electro.kz"];
+const allowedOrigins = ["https://trade-electro.kz", "http://trade-electro.kz"];
 const allowedOriginsCors = cors({
   origin: function (origin, callback) {
     console.log("CORS", origin);
@@ -33,8 +33,16 @@ router.get("/user-info", auth, userController.userInfo);
 router.get("/stations", auth, stationController.getAllStations);
 router.get("/stations/:id", auth, stationController.getStationById);
 
-router.get("/my-active-stations", auth, stationController.getAllMyActiveStations);
-router.get("/my-active-stations/:id", auth, stationController.getMyActiveStationById);
+router.get(
+  "/my-active-stations",
+  auth,
+  stationController.getAllMyActiveStations
+);
+router.get(
+  "/my-active-stations/:id",
+  auth,
+  stationController.getMyActiveStationById
+);
 
 router.post("/charge/start", auth, chargeController.startCharge);
 router.post("/charge/stop", auth, chargeController.stopCharge);

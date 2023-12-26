@@ -6,7 +6,7 @@ export interface IPaymentRequest {
   txn_date: string;
 }
 
-export type PaymentRequestType = "check" | "pay";
+export type PaymentRequestType = "check" | "pay" | "status";
 
 export interface IPaymentResponse {
   txn_id: string;
@@ -17,16 +17,27 @@ export interface IPaymentResponse {
   fields?: {
     field1?: {
       userFullName: string;
+      phoneNumber: string;
       balance: number;
       minSumForPay: number;
     };
     field2?: {
+      stationId: string;
       minSumForPay: number;
       isBusy: boolean;
       power: string;
       price: string;
       name: string;
       address: string;
+      amountOfPower: string;
+    };
+    field3?: {
+      stationId: string;
+      name: string;
+      address: string;
+      isCompleted: boolean;
+      returnSum: number;
+      amountOfPower: string;
     };
   };
 }

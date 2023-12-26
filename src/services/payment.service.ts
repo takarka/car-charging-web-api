@@ -1,6 +1,11 @@
 import { Reference } from "firebase-admin/database";
 import { FirebaseDatabase } from "../firebase/admin";
-import { STATIONS, STATIONS_INFO, USERS } from "../firebase/db-ref-name";
+import {
+  STATIONS,
+  STATIONS_INFO,
+  UNIQUE_IDS,
+  USERS,
+} from "../firebase/db-ref-name";
 import {
   IPaymentRequest,
   IPaymentResponse,
@@ -15,6 +20,11 @@ import { IUser, IUserAccountPaymentHistory } from "../models/user.model";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import {
+  amountOfPower,
+  calculateCompletionDate,
+  remainingSum,
+} from "../utils/charge.util";
 dayjs.extend(utc);
 
 const minSumForPayUser = 100;
@@ -29,6 +39,8 @@ export async function kaspiPayment(
 
   if (data?.command == "check") {
     return paymentCheck(data);
+  } else if (data?.command == "status") {
+    return paymentStatus(data);
   } else if (data?.command == "pay") {
     return paymentPay(data);
   } else {
@@ -54,6 +66,7 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
       fields: {
         field1: {
           userFullName: user?.firstName ?? "",
+          phoneNumber: user?.phoneNumber ?? "",
           balance: user.accountBalance ?? 0,
           minSumForPay: minSumForPayUser,
         },
@@ -67,6 +80,13 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
 
   if (stationInfo) {
     const isStationBusy = stationInfo.whoUses != null;
+
+    const amountOfPowerObj: any = {};
+    if (data?.sum != null) {
+      amountOfPowerObj.amountOfPower =
+        Math.floor(amountOfPower(stationInfo.price, data.sum)) + " кВт";
+    }
+
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: isStationBusy
@@ -75,12 +95,14 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
       comment: isStationBusy ? `Station is busy!` : "Ok",
       fields: {
         field2: {
+          stationId: account,
           isBusy: isStationBusy,
           minSumForPay: 1000,
           power: stationInfo.power + " кВт",
           price: stationInfo.price + " тг/кВт",
           name: stationInfo.name,
           address: stationInfo.address,
+          ...amountOfPowerObj,
         },
       },
     };
@@ -90,6 +112,69 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
     txn_id: data.txn_id,
     result: PaymentResponseType.FAILED,
     comment: "Account not found!",
+  };
+}
+
+async function paymentStatus(data: IPaymentRequest): Promise<IPaymentResponse> {
+  const account = data?.account;
+  const txn_id = data?.txn_id;
+
+  if (!account) {
+    throw new Error("account can not be empty!");
+  }
+  if (!txn_id) {
+    throw new Error("txn_id can not be empty!");
+  }
+
+  const stationInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + account);
+  const stationInfoSnapshot = await stationInfoRef.once("value");
+  const stationInfo: IStationInfo = stationInfoSnapshot.val();
+
+  if (txn_id == stationInfo?.whoUses?.order?.id) {
+    return <IPaymentResponse>{
+      txn_id: txn_id,
+      result: PaymentResponseType.SUCCESS,
+      comment: "Charging is not completed!",
+      fields: {
+        field3: {
+          stationId: account,
+          name: stationInfo.name,
+          address: stationInfo.address,
+          isCompleted: false,
+          returnSum: 0,
+        },
+      },
+    };
+  }
+
+  const stationHistoryInfo = Object.entries(
+    stationInfo?.stationHistories ?? []
+  ).find(
+    ([id, history]) =>
+      history?.order?.id != null && history.order.id == data?.txn_id
+  );
+
+  if (stationHistoryInfo && stationHistoryInfo[1]) {
+    return <IPaymentResponse>{
+      txn_id: txn_id,
+      result: PaymentResponseType.SUCCESS,
+      comment: `Charging is completed!`,
+      fields: {
+        field3: {
+          stationId: account,
+          name: stationInfo.name,
+          address: stationInfo.address,
+          isCompleted: true,
+          returnSum: remainingSum(stationHistoryInfo[1]),
+        },
+      },
+    };
+  }
+
+  return <IPaymentResponse>{
+    txn_id: txn_id,
+    result: PaymentResponseType.FAILED,
+    comment: "Station or txt_id  are not found!",
   };
 }
 
@@ -171,16 +256,20 @@ async function paymentPayStation(
   stationInfo: IStationInfo
 ): Promise<IPaymentResponse> {
   const stationID = data.account;
+  const dateNow = dayjs().utc().toISOString();
 
   if (data?.sum == null || data.sum < minSumForPayStation) {
     throw new Error(`Sum can not be less than ${minSumForPayStation}`);
   }
 
-  const isTxnIdAlreadyExists = stationInfo?.stationHistories?.find(
-    (history) => history?.order?.id != null && history.order.id == data?.txn_id
+  const stationHistoryInfo = Object.entries(
+    stationInfo?.stationHistories ?? []
+  ).find(
+    ([id, history]) =>
+      history?.order?.id != null && history.order.id == data?.txn_id
   );
 
-  if (isTxnIdAlreadyExists) {
+  if (stationHistoryInfo && stationHistoryInfo[1]) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: PaymentResponseType.PAID,
@@ -191,16 +280,41 @@ async function paymentPayStation(
   if (stationInfo?.whoUses) {
     throw new Error(`The station is already in use by another user!`);
   }
+  // GENERATE NEW ID FOR HISTORY
+  const newHistoryId = await FirebaseDatabase.ref(UNIQUE_IDS).push().key;
+  if (!newHistoryId) {
+    throw new Error(`New history ID can not generated!`);
+  }
 
   // mark as this station is used by Order
-  const dateNow = dayjs().utc().toISOString();
-  await stationsInfoRef.child("whoUses").set({
-    price: stationInfo.price,
-    power: stationInfo.power,
-    cost: data.sum,
-    date: dateNow,
-    order: { id: data.txn_id, client: "Kaspi", date: data.txn_date },
-  } as IStationHistory);
+  const stationsInfoWhoUsesTransaction = await stationsInfoRef
+    .child("whoUses")
+    .transaction((currentData) => {
+      if (currentData == null) {
+        return {
+          id: newHistoryId,
+          price: stationInfo.price,
+          power: stationInfo.power,
+          cost: data.sum,
+          date: dateNow,
+          completionDate: calculateCompletionDate(
+            stationInfo,
+            data.sum,
+            dateNow
+          ),
+          order: { id: data.txn_id, client: "Kaspi", date: data.txn_date },
+        } as IStationHistory;
+      }
+      // Abort the transaction.
+      return;
+    });
+
+  if (!stationsInfoWhoUsesTransaction?.committed) {
+    //
+    throw new Error(
+      `Station ${data?.account} is used by another user! (transaction)`
+    );
+  }
 
   // start charging at this STATION
   const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationID);

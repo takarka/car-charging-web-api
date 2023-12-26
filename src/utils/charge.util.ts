@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { IStationInfo } from "../models/stations.model";
+import { IStationHistory, IStationInfo } from "../models/stations.model";
 
 export function amountOfPower(price: number, cost: number): number {
   if (!cost || !price) {
@@ -11,6 +11,43 @@ export function amountOfPower(price: number, cost: number): number {
 
 export function amountOfCost(price: number, power: number): number {
   return price * power;
+}
+
+export function amountOfChargedPower(
+  stationHistoryInfo: IStationHistory,
+  dateNow: string
+): number {
+  const powerInSecond = (stationHistoryInfo?.power ?? 0) / 3600;
+
+  const chargingTimeInSecond = dayjs(stationHistoryInfo.completionDate).diff(
+    dateNow,
+    "second"
+  );
+
+  if (chargingTimeInSecond < 0) {
+    return amountOfPower(stationHistoryInfo.price, stationHistoryInfo.cost);
+  }
+
+  return Math.floor(powerInSecond * chargingTimeInSecond);
+}
+
+export function remainingSum(stationHistoryInfo: IStationHistory): number {
+  const powerInSecond = (stationHistoryInfo?.power ?? 0) / 3600;
+
+  const chargingTimeInSecond = dayjs(stationHistoryInfo.completionDate).diff(
+    stationHistoryInfo.date,
+    "second"
+  );
+  const factPower = Math.floor(powerInSecond * chargingTimeInSecond);
+  const plannedPower = Math.floor(
+    amountOfPower(stationHistoryInfo.price, stationHistoryInfo.cost)
+  );
+
+  if (factPower >= plannedPower) {
+    return 0;
+  }
+
+  return stationHistoryInfo.cost - factPower * stationHistoryInfo.price;
 }
 
 export function calculateCompletionDate(
@@ -25,7 +62,7 @@ export function calculateCompletionDate(
     return "0";
   }
 
-  const chargingTotalTimeInSeconds = Math.round(
+  const chargingTotalTimeInSeconds = Math.floor(
     (powerToBeCharged / powerInHour) * 60 * 60
   );
 
