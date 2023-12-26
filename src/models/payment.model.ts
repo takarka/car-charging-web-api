@@ -37,7 +37,6 @@ export interface IPaymentResponse {
       address: string;
       isCompleted: boolean;
       returnSum: number;
-      amountOfPower: string;
     };
   };
 }

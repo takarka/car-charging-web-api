@@ -98,7 +98,7 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
           stationId: account,
           isBusy: isStationBusy,
           minSumForPay: 1000,
-          power: stationInfo.power + " кВт",
+          power: stationInfo.power + " кВт⋅час",
           price: stationInfo.price + " тг/кВт",
           name: stationInfo.name,
           address: stationInfo.address,
