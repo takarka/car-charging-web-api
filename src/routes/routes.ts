@@ -20,6 +20,7 @@ const allowedOriginsCors = cors({
     }
     return callback(null, true);
   },
+  credentials: true,
 });
 
 const router = Router();
