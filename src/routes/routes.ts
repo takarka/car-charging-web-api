@@ -17,7 +17,7 @@ var corsOptionsDelegate = function (req: any, callback: any) {
 };
 
 const router = Router();
-router.use(cors(corsOptionsDelegate));
+router.use(cors());
 
 router.post("/login", userController.loginOne);
 router.post("/register", userController.registerOne);
