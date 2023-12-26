@@ -5,7 +5,7 @@ import * as chargeController from "../controllers/charge.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
-const allowedOrigins = ["https://trade-electro.kz", "http://trade-electro.kz"];
+const allowedOrigins = ["http://localhost:4200", "http://trade-electro.kz"];
 const allowedOriginsCors = cors({
   origin: function (origin, callback) {
     console.log("CORS", origin);
