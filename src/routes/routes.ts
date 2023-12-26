@@ -5,19 +5,25 @@ import * as chargeController from "../controllers/charge.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
-var allowlist = ["http://trade-electro.kz"];
-var corsOptionsDelegate = function (req: any, callback: any) {
-  var corsOptions;
-  if (allowlist.indexOf(req.header("Origin")) !== -1) {
-    corsOptions = { origin: true }; // reflect (enable) the requested origin in the CORS response
-  } else {
-    corsOptions = { origin: false }; // disable CORS for this request
-  }
-  callback(null, corsOptions); // callback expects two parameters: error and options
-};
+const allowedOrigins = ["https://trade-electro.kz"];
+const allowedOriginsCors = cors({
+  origin: function (origin, callback) {
+    console.log("CORS", origin);
+    // allow requests with no origin
+    // (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      var msg =
+        "The CORS policy for this site does not " +
+        "allow access from the specified Origin.";
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+});
 
 const router = Router();
-router.use(cors());
+router.use(allowedOriginsCors);
 
 router.post("/login", userController.loginOne);
 router.post("/register", userController.registerOne);

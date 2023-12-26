@@ -113,7 +113,7 @@ export async function login(user: IUser) {
     const isMatch = bcrypt.compareSync(user.password, foundUser.password);
 
     if (isMatch) {
-      const { password, ...foundUserWithoutPass } = foundUser;
+      const { accountHistories, password, ...foundUserWithoutPass } = foundUser;
 
       const token = jwt.sign(foundUserWithoutPass, SECRET_KEY, {
         expiresIn: "1h",

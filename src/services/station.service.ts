@@ -18,6 +18,7 @@ export async function stations(): Promise<IStationInfo[]> {
       const station: IStationInfo = value as IStationInfo;
       station.id = key;
       station.isCharging = isStationCharging(key, stationsValue);
+      station.stationHistories = [];
       result.push(station);
     }
     return result;
