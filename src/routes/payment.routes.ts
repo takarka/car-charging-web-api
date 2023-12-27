@@ -9,6 +9,7 @@ const corsOptions = cors({
 const paymentRouter = Router();
 paymentRouter.use(corsOptions);
 
-paymentRouter.get("/payment_app.cgi", paymentController.kaspiPayment);
+paymentRouter.get("/user", paymentController.kaspiUserPayment);
+paymentRouter.get("/station", paymentController.kaspiStationPayment);
 
 export { paymentRouter };

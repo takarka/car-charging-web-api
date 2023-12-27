@@ -9,6 +9,7 @@ import {
 import {
   IPaymentRequest,
   IPaymentResponse,
+  PaymentRequestAccountType,
   PaymentResponseType,
 } from "../models/payment.model";
 import {
@@ -31,24 +32,33 @@ const minSumForPayUser = 100;
 const minSumForPayStation = 1000;
 
 export async function kaspiPayment(
-  data: IPaymentRequest
+  data: IPaymentRequest,
+  accountType: PaymentRequestAccountType
 ): Promise<IPaymentResponse> {
   if (data?.txn_id == null || data.txn_id == "") {
     throw new Error("txn_id can not be empty!");
   }
 
   if (data?.command == "check") {
-    return paymentCheck(data);
+    return accountType == "station"
+      ? paymentStationCheck(data)
+      : paymentUserCheck(data);
   } else if (data?.command == "status") {
-    return paymentStatus(data);
+    return accountType == "station"
+      ? paymentStationStatus(data)
+      : paymentUserStatus(data);
   } else if (data?.command == "pay") {
-    return paymentPay(data);
+    return accountType == "station"
+      ? paymentPayStation(data)
+      : paymentPayUser(data);
   } else {
     throw new Error("command not found");
   }
 }
 
-async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
+async function paymentUserCheck(
+  data: IPaymentRequest
+): Promise<IPaymentResponse> {
   const account = data?.account;
   if (!account) {
     throw new Error("account can not be empty!");
@@ -58,64 +68,83 @@ async function paymentCheck(data: IPaymentRequest): Promise<IPaymentResponse> {
   const userSnapshot = await userRef.once("value");
   const user: IUser = userSnapshot.val();
 
-  if (user) {
+  if (!user) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
-      result: PaymentResponseType.SUCCESS,
-      comment: "Ok",
-      fields: {
-        field1: {
-          userFullName: user?.firstName ?? "",
-          phoneNumber: user?.phoneNumber ?? "",
-          balance: user.accountBalance ?? 0,
-          minSumForPay: minSumForPayUser,
-        },
-      },
+      result: PaymentResponseType.FAILED,
+      comment: "User not found!",
     };
+  }
+
+  return <IPaymentResponse>{
+    txn_id: data.txn_id,
+    result: PaymentResponseType.SUCCESS,
+    comment: "Ok",
+    userFullName: user?.firstName ?? "",
+    phoneNumber: user?.phoneNumber ?? "",
+    balance: user.accountBalance ?? 0,
+    minSumForPay: minSumForPayUser,
+  };
+}
+
+async function paymentStationCheck(
+  data: IPaymentRequest
+): Promise<IPaymentResponse> {
+  const account = data?.account;
+  if (!account) {
+    throw new Error("account can not be empty!");
   }
 
   const stationInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + account);
   const stationInfoSnapshot = await stationInfoRef.once("value");
   const stationInfo: IStationInfo = stationInfoSnapshot.val();
 
-  if (stationInfo) {
-    const isStationBusy = stationInfo.whoUses != null;
-
-    const amountOfPowerObj: any = {};
-    if (data?.sum != null) {
-      amountOfPowerObj.amountOfPower =
-        Math.floor(amountOfPower(stationInfo.price, data.sum)) + " кВт";
-    }
-
+  if (!stationInfo) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
-      result: isStationBusy
-        ? PaymentResponseType.ERROR
-        : PaymentResponseType.SUCCESS,
-      comment: isStationBusy ? `Station is busy!` : "Ok",
-      fields: {
-        field2: {
-          stationId: account,
-          isBusy: isStationBusy,
-          minSumForPay: 1000,
-          power: stationInfo.power + " кВт⋅час",
-          price: stationInfo.price + " тг/кВт",
-          name: stationInfo.name,
-          address: stationInfo.address,
-          ...amountOfPowerObj,
-        },
-      },
+      result: PaymentResponseType.FAILED,
+      comment: "Station not found!",
     };
+  }
+
+  const isStationBusy = stationInfo.whoUses != null;
+
+  const amountOfPowerObj: any = {};
+  if (data?.sum != null) {
+    amountOfPowerObj.amountOfPower =
+      Math.floor(amountOfPower(stationInfo.price, data.sum)) + " кВт";
   }
 
   return <IPaymentResponse>{
     txn_id: data.txn_id,
-    result: PaymentResponseType.FAILED,
-    comment: "Account not found!",
+    result: isStationBusy
+      ? PaymentResponseType.ERROR
+      : PaymentResponseType.SUCCESS,
+    comment: isStationBusy ? `Station is busy!` : "Ok",
+    stationId: account,
+    isBusy: isStationBusy,
+    minSumForPay: 1000,
+    power: stationInfo.power + " кВт⋅час",
+    price: stationInfo.price + " тг/кВт",
+    name: stationInfo.name,
+    address: stationInfo.address,
+    ...amountOfPowerObj,
   };
 }
 
-async function paymentStatus(data: IPaymentRequest): Promise<IPaymentResponse> {
+async function paymentUserStatus(
+  data: IPaymentRequest
+): Promise<IPaymentResponse> {
+  return <IPaymentResponse>{
+    txn_id: data.txn_id,
+    result: PaymentResponseType.FAILED,
+    comment: "User status not available!",
+  };
+}
+
+async function paymentStationStatus(
+  data: IPaymentRequest
+): Promise<IPaymentResponse> {
   const account = data?.account;
   const txn_id = data?.txn_id;
 
@@ -135,15 +164,11 @@ async function paymentStatus(data: IPaymentRequest): Promise<IPaymentResponse> {
       txn_id: txn_id,
       result: PaymentResponseType.SUCCESS,
       comment: "Charging is not completed!",
-      fields: {
-        field3: {
-          stationId: account,
-          name: stationInfo.name,
-          address: stationInfo.address,
-          isCompleted: false,
-          returnSum: 0,
-        },
-      },
+      stationId: account,
+      name: stationInfo.name,
+      address: stationInfo.address,
+      isCompleted: false,
+      returnSum: 0,
     };
   }
 
@@ -159,15 +184,11 @@ async function paymentStatus(data: IPaymentRequest): Promise<IPaymentResponse> {
       txn_id: txn_id,
       result: PaymentResponseType.SUCCESS,
       comment: `Charging is completed!`,
-      fields: {
-        field3: {
-          stationId: account,
-          name: stationInfo.name,
-          address: stationInfo.address,
-          isCompleted: true,
-          returnSum: remainingSum(stationHistoryInfo[1]),
-        },
-      },
+      stationId: account,
+      name: stationInfo.name,
+      address: stationInfo.address,
+      isCompleted: true,
+      returnSum: remainingSum(stationHistoryInfo[1]),
     };
   }
 
@@ -178,7 +199,9 @@ async function paymentStatus(data: IPaymentRequest): Promise<IPaymentResponse> {
   };
 }
 
-async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
+async function paymentPayUser(
+  data: IPaymentRequest
+): Promise<IPaymentResponse> {
   if (!data?.account) {
     throw new Error("account can not be empty!");
   }
@@ -187,32 +210,14 @@ async function paymentPay(data: IPaymentRequest): Promise<IPaymentResponse> {
   const userSnapshot = await userRef.once("value");
   const user: IUser = userSnapshot.val();
 
-  if (user) {
-    return paymentPayUser(data, userRef, user);
+  if (!user) {
+    return <IPaymentResponse>{
+      txn_id: data.txn_id,
+      result: PaymentResponseType.FAILED,
+      comment: "User not found!",
+    };
   }
 
-  const stationInfoRef = FirebaseDatabase.ref(
-    STATIONS_INFO + "/" + data.account
-  );
-  const stationInfoSnapshot = await stationInfoRef.once("value");
-  const stationInfo: IStationInfo = stationInfoSnapshot.val();
-
-  if (stationInfo) {
-    return paymentPayStation(data, stationInfoRef, stationInfo);
-  }
-
-  return <IPaymentResponse>{
-    txn_id: data.txn_id,
-    result: PaymentResponseType.FAILED,
-    comment: "Account not found!",
-  };
-}
-
-async function paymentPayUser(
-  data: IPaymentRequest,
-  userRef: Reference,
-  user: IUser
-): Promise<IPaymentResponse> {
   if (data?.sum == null || data.sum < minSumForPayUser) {
     throw new Error(`Sum can not be less than ${minSumForPayUser}`);
   }
@@ -251,11 +256,25 @@ async function paymentPayUser(
 }
 
 async function paymentPayStation(
-  data: IPaymentRequest,
-  stationsInfoRef: Reference,
-  stationInfo: IStationInfo
+  data: IPaymentRequest
 ): Promise<IPaymentResponse> {
-  const stationID = data.account;
+  const stationID = data?.account;
+  if (!stationID) {
+    throw new Error("account can not be empty!");
+  }
+
+  const stationInfoRef = FirebaseDatabase.ref(STATIONS_INFO + "/" + stationID);
+  const stationInfoSnapshot = await stationInfoRef.once("value");
+  const stationInfo: IStationInfo = stationInfoSnapshot.val();
+
+  if (!stationInfo) {
+    return <IPaymentResponse>{
+      txn_id: data.txn_id,
+      result: PaymentResponseType.FAILED,
+      comment: "Station not found!",
+    };
+  }
+
   const dateNow = dayjs().utc().toISOString();
 
   if (data?.sum == null || data.sum < minSumForPayStation) {
@@ -287,7 +306,7 @@ async function paymentPayStation(
   }
 
   // mark as this station is used by Order
-  const stationsInfoWhoUsesTransaction = await stationsInfoRef
+  const stationsInfoWhoUsesTransaction = await stationInfoRef
     .child("whoUses")
     .transaction((currentData) => {
       if (currentData == null) {

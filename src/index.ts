@@ -16,7 +16,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
-app.use("", paymentRouter);
+app.use("/kaspi", paymentRouter);
 
 app.listen(port, () => {
   console.log(`Node.JS-Express API 📀 listening at http://localhost:${port}`);

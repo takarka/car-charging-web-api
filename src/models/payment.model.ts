@@ -7,38 +7,42 @@ export interface IPaymentRequest {
 }
 
 export type PaymentRequestType = "check" | "pay" | "status";
+export type PaymentRequestAccountType = "user" | "station";
 
-export interface IPaymentResponse {
+export interface IPaymentResponse
+  extends IPaymentUserResponse,
+    IPaymentStationResponse,
+    IPaymentStationStatusResponse {
   txn_id: string;
   prv_tnx_id: string;
   result: PaymentResponseType;
   sum: number;
   comment: string;
-  fields?: {
-    field1?: {
-      userFullName: string;
-      phoneNumber: string;
-      balance: number;
-      minSumForPay: number;
-    };
-    field2?: {
-      stationId: string;
-      minSumForPay: number;
-      isBusy: boolean;
-      power: string;
-      price: string;
-      name: string;
-      address: string;
-      amountOfPower: string;
-    };
-    field3?: {
-      stationId: string;
-      name: string;
-      address: string;
-      isCompleted: boolean;
-      returnSum: number;
-    };
-  };
+}
+
+export interface IPaymentUserResponse {
+  userFullName: string;
+  phoneNumber: string;
+  balance: number;
+  minSumForPay: number;
+}
+export interface IPaymentStationResponse {
+  stationId: string;
+  minSumForPay: number;
+  isBusy: boolean;
+  power: string;
+  price: string;
+  name: string;
+  address: string;
+  amountOfPower: string;
+}
+
+export interface IPaymentStationStatusResponse {
+  stationId: string;
+  name: string;
+  address: string;
+  isCompleted: boolean;
+  returnSum: number;
 }
 
 export const enum PaymentResponseType {
