@@ -221,8 +221,42 @@ export async function stopCharging(
       } as IUserAccountChargeHistory);
     } else {
       userAccountHistoryRef.child("isFinished").set(true);
-      userAccountHistoryRef.child("completionDate").set(stationInfo.whoUses.completionDate);
+      userAccountHistoryRef
+        .child("completionDate")
+        .set(stationInfo.whoUses.completionDate);
     }
+
+    return true;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function changeChargeState(
+  userId: string,
+  stationId: string
+): Promise<any | null> {
+  try {
+    if (!userId || !stationId) {
+      throw new Error(`Requered fields does not exist!`);
+    }
+
+    const userRef = FirebaseDatabase.ref(USERS + "/" + userId);
+    const isUserAdminSnapshot = await userRef.child("isAdmin").once("value");
+    if (!isUserAdminSnapshot.val()) {
+      throw new Error(`You are not admin!)`);
+    }
+
+    const stationsRef = FirebaseDatabase.ref(STATIONS + "/" + stationId);
+    const stationsSnapshot = await stationsRef.once("value");
+    const station: IStation = stationsSnapshot.val();
+    if (station == null) {
+      throw new Error(`Station ${stationId} does not exist!`);
+    }
+
+    const changeTo = station.changeToWake?.changeMe === 1 ? 0 : 1;
+    // STOP charging at this STATION
+    await stationsRef.child("changeToWake/changeMe").set(changeTo);
 
     return true;
   } catch (error) {

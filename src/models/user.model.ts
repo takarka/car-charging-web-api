@@ -6,6 +6,7 @@ export interface IUser {
   accountBalance: number;
   accountHistories?: IUserAccountHistory[];
   password?: string;
+  isAdmin?: boolean;
 }
 
 export type IUserAccountHistory =

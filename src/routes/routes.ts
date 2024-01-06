@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as stationController from "../controllers/station.controller";
 import * as userController from "../controllers/user.controller";
 import * as chargeController from "../controllers/charge.controller";
+import * as adminController from "../controllers/admin.controller";
 import { auth } from "../middleware/auth";
 import cors from "cors";
 
@@ -46,5 +47,7 @@ router.get(
 
 router.post("/charge/start", auth, chargeController.startCharge);
 router.post("/charge/stop", auth, chargeController.stopCharge);
+
+router.post("/admin/change-state", auth, adminController.changeChargeState);
 
 export { router };
