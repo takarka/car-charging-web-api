@@ -28,8 +28,8 @@ import {
 } from "../utils/charge.util";
 dayjs.extend(utc);
 
-const minSumForPayUser = 100;
-const minSumForPayStation = 1000;
+const minSumForPayUser = 10;
+const minSumForPayStation = 10;
 
 export async function kaspiPayment(
   data: IPaymentRequest,
