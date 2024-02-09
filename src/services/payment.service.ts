@@ -123,7 +123,7 @@ async function paymentStationCheck(
     comment: isStationBusy ? `Station is busy!` : "Ok",
     stationId: account,
     isBusy: isStationBusy,
-    minSumForPay: 1000,
+    minSumForPay: minSumForPayStation,
     power: stationInfo.power + " кВт⋅час",
     price: stationInfo.price + " тг/кВт",
     name: stationInfo.name,
