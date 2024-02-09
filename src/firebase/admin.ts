@@ -4,6 +4,7 @@ import { Database } from "firebase-admin/database";
 import { FIREBASE_CONFIG } from "./firebase.config";
 import {
   stationStateChanges,
+  stationDeviceGetOrderStopOrStart
 } from "./services/station-watch.service";
 
 const FirebaseInstance: App = firebase.initializeApp({
@@ -13,6 +14,6 @@ const FirebaseInstance: App = firebase.initializeApp({
 
 const FirebaseDatabase: Database = firebase.database(FirebaseInstance);
 stationStateChanges();
-// stationDeviceGetOrderStopOrStart();
+stationDeviceGetOrderStopOrStart();
 
 export { FirebaseDatabase };
