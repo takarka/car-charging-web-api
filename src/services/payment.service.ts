@@ -66,15 +66,15 @@ async function paymentUserCheck(
 
   const userRef = FirebaseDatabase.ref(USERS + "/" + account);
   const userSnapshot = await userRef.once("value");
-  const user: IUser = userSnapshot.val();
 
-  if (!user) {
+  if (!userSnapshot.exists()) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: PaymentResponseType.FAILED,
-      comment: "User not found!",
+      comment: "User not found!!!",
     };
   }
+  const user: IUser = userSnapshot.val();
 
   return <IPaymentResponse>{
     txn_id: data.txn_id,
@@ -210,7 +210,7 @@ async function paymentPayUser(
   const userSnapshot = await userRef.once("value");
   const user: IUser = userSnapshot.val();
 
-  if (!user) {
+  if (user == null) {
     return <IPaymentResponse>{
       txn_id: data.txn_id,
       result: PaymentResponseType.FAILED,
